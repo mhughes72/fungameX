@@ -1,0 +1,39 @@
+# Production-like local stack (needs Docker). For plain local dev you don't need this; see README.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: xpg
+      POSTGRES_PASSWORD: xpg
+      POSTGRES_DB: xpg
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7
+
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    environment: &backend_env
+      DATABASE_URL: postgresql://xpg:xpg@postgres:5432/xpg
+      REDIS_URL: redis://redis:6379/0
+    depends_on: [postgres, redis]
+    ports: ["8000:8000"]
+
+  worker:
+    build: ./backend
+    command: python -m app.worker
+    env_file: ./backend/.env
+    environment: *backend_env
+    depends_on: [postgres, redis]
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      PORT: 3000
+    depends_on: [backend]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
